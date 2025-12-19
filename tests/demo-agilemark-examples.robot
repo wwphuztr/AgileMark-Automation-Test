@@ -30,20 +30,6 @@ Case1: Install AgileMark Application
     Log    ========================== Wait for pattern to appear on screen with high similarity threshold ==========================
     Set Min Similarity    0.95
     ${pattern_found}=    Run Keyword And Return Status    Wait Until Screen Contain    ${IMAGE_DIR}${/}patternAfterInstall.png    ${LONG_TIMEOUT}
-    
-    # Capture actual screenshot for comparison regardless of pattern match result
-    Log    ========================== Capture actual screenshot for comparison ==========================
-    ${actual_screenshot}=    Capture Screen Region    0    0    1920    1080    ${ACTUAL_IMAGES_DIR}${/}install_screen.png
-    
-    # Compare with expected image if it exists
-    Log    ========================== Compare with expected image if it exists ==========================
-    ${expected_img}=    Set Variable    ${EXPECTED_IMAGES_DIR}${/}install_screen_expected.png
-    ${expected_exists}=    Run Keyword And Return Status    File Should Exist    ${expected_img}
-    Run Keyword If    ${expected_exists}    Compare Images    ${expected_img}    ${actual_screenshot}    95.0
-    
-    # Fail at the end if pattern was not found
-    Log    ========================== Fail if pattern was not found ==========================
-    Run Keyword If    not ${pattern_found}    Fail    Pattern '${IMAGE_DIR}${/}patternAfterInstall.png' was not found on screen. Check image comparison in report.
 
     # Delete the config file if it exists to ensure a fresh install
     Log    ========================== Delete the config file if it exists to ensure a fresh install ==========================
@@ -59,10 +45,37 @@ Case1: Install AgileMark Application
     ${dest_dir}=    Set Variable    C:\\Program Files (x86)\\AgileMark
     ${dest_config}=    Set Variable    ${dest_dir}\\store.cfg
 
+    # Restart AgileService to apply new config
+    Log    ========================== Restart AgileService to apply new config ==========================
+    # First check if it's running as a service
+    ${service_check}=    Run Process    powershell    -Command    Get-Service -Name AgileService -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Status    shell=True
+    Log    Service check result: ${service_check.stdout}
+    
+    # If it's a service, restart it; otherwise restart as a process
+    ${is_service}=    Run Keyword And Return Status    Should Not Be Empty    ${service_check.stdout}
+    Run Keyword If    ${is_service}    Run Process    powershell    -Command    Restart-Service -Name AgileService.exe -Force    shell=True
+    
+    Sleep    3s
+    Log    AgileService restarted successfully
+
     # Copy config file to destination
     Log    ========================== Copy config file to destination ==========================
     Copy File    ${source_config}    ${dest_config}
     Log    Copied config file from ${source_config} to ${dest_config}
+
+    # Capture actual screenshot for comparison regardless of pattern match result
+    Log    ========================== Capture actual screenshot for comparison ==========================
+    ${actual_screenshot}=    Capture Screen Region    0    0    1920    1080    ${ACTUAL_IMAGES_DIR}${/}install_screen.png
+    
+    # Compare with expected image if it exists
+    Log    ========================== Compare with expected image if it exists ==========================
+    ${expected_img}=    Set Variable    ${EXPECTED_IMAGES_DIR}${/}install_screen_expected.png
+    ${expected_exists}=    Run Keyword And Return Status    File Should Exist    ${expected_img}
+    Run Keyword If    ${expected_exists}    Compare Images    ${expected_img}    ${actual_screenshot}    95.0
+    
+    # Fail at the end if pattern was not found
+    Log    ========================== Fail if pattern was not found ==========================
+    Run Keyword If    not ${pattern_found}    Fail    Pattern '${IMAGE_DIR}${/}patternAfterInstall.png' was not found on screen. Check image comparison in report.
 
     Stop Sikuli Process
 
@@ -144,6 +157,22 @@ Start Sikuli Process
 Stop Sikuli Process
     [Documentation]    Cleanup after SikuliX operations
     Remove Image Path    ${IMAGE_DIR}
+
+Restart AgileService Process
+    [Documentation]    Restarts AgileService as a process (not a Windows service)
+    # Check if process is running
+    ${check_process}=    Run Process    tasklist    /FI    IMAGENAME eq AgileService.exe    shell=True
+    ${is_running}=    Run Keyword And Return Status    Should Contain    ${check_process.stdout}    AgileService.exe
+    
+    # Stop the process if running
+    Run Keyword If    ${is_running}    Run Process    taskkill    /F    /IM    AgileService.exe    shell=True
+    Run Keyword If    ${is_running}    Log    Stopped AgileService.exe
+    Sleep    2s
+    
+    # Start the process
+    ${start_result}=    Start Process    C:\\Program Files (x86)\\AgileMark\\AgileService.exe    shell=True
+    Log    Started AgileService.exe with handle: ${start_result}
+    Sleep    2s
 
 Cleanup After Suite
     [Documentation]    Cleanup suite and delete SikuliX log files
