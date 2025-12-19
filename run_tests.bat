@@ -25,10 +25,11 @@ REM Create results directory if it doesn't exist
 if not exist "results" mkdir results
 
 REM Run tests
-echo Running tests...
+echo Running tests with TRACE level for detailed debugging...
+echo Console output will be saved to: results\console.log
 echo.
 
-robot --outputdir results --loglevel INFO tests/
+robot --outputdir results --loglevel TRACE --listener RobotStackTracer tests/ > results\console.log 2>&1
 
 echo.
 echo ===================================
@@ -36,6 +37,7 @@ echo Test execution completed!
 echo ===================================
 echo.
 echo View results in: results\report.html
+echo Console log saved to: results\console.log
 echo.
 
 pause

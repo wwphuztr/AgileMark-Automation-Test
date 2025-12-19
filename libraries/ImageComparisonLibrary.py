@@ -1,0 +1,338 @@
+"""
+ImageComparisonLibrary - Robot Framework Library for Visual Testing
+Provides image comparison capabilities with detailed reporting
+"""
+
+import os
+import base64
+from datetime import datetime
+from pathlib import Path
+from typing import Tuple, Optional
+from io import BytesIO
+
+try:
+    from PIL import Image, ImageDraw, ImageFont, ImageChops
+    import cv2
+    import numpy as np
+except ImportError as e:
+    raise ImportError(f"Required libraries not installed: {e}. Please install Pillow and opencv-python.")
+
+from robot.api import logger
+from robot.libraries.BuiltIn import BuiltIn
+
+
+class ImageComparisonLibrary:
+    """Library for comparing images and generating visual comparison reports.
+    
+    This library provides keywords for comparing expected and actual images,
+    with results embedded in Robot Framework HTML reports.
+    """
+    
+    ROBOT_LIBRARY_SCOPE = 'GLOBAL'
+    ROBOT_LIBRARY_VERSION = '1.0.0'
+    
+    def __init__(self):
+        self.comparison_results = []
+        self.output_dir = None
+        
+    def _get_output_dir(self) -> Path:
+        """Get the Robot Framework output directory."""
+        if self.output_dir is None:
+            builtin = BuiltIn()
+            try:
+                output_dir = builtin.get_variable_value('${OUTPUT DIR}')
+                self.output_dir = Path(output_dir)
+            except:
+                self.output_dir = Path.cwd() / 'results'
+        
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        return self.output_dir
+    
+    def _encode_image_to_base64(self, image_path: str) -> str:
+        """Encode image to base64 for embedding in HTML."""
+        with open(image_path, 'rb') as f:
+            return base64.b64encode(f.read()).decode('utf-8')
+    
+    def _calculate_similarity_ssim(self, img1: np.ndarray, img2: np.ndarray) -> float:
+        """Calculate Structural Similarity Index (SSIM) between two images."""
+        if img1.shape != img2.shape:
+            raise ValueError("Images must have the same dimensions for SSIM")
+        
+        # Convert to grayscale if needed
+        if len(img1.shape) == 3:
+            img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+        if len(img2.shape) == 3:
+            img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+        
+        # Compute SSIM
+        from skimage.metrics import structural_similarity
+        score, diff = structural_similarity(img1, img2, full=True)
+        return score * 100
+    
+    def _calculate_similarity_mse(self, img1: np.ndarray, img2: np.ndarray) -> float:
+        """Calculate Mean Squared Error based similarity."""
+        mse = np.mean((img1.astype(float) - img2.astype(float)) ** 2)
+        max_pixel_value = 255.0
+        max_mse = max_pixel_value ** 2
+        similarity = (1 - (mse / max_mse)) * 100
+        return max(0, similarity)
+    
+    def _create_diff_image(self, img1_path: str, img2_path: str, output_path: str) -> str:
+        """Create a visual difference image highlighting changes."""
+        img1 = cv2.imread(img1_path)
+        img2 = cv2.imread(img2_path)
+        
+        # Ensure images are the same size
+        if img1.shape != img2.shape:
+            img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
+        
+        # Create difference image
+        diff = cv2.absdiff(img1, img2)
+        
+        # Enhance differences for visibility
+        gray_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+        _, thresh = cv2.threshold(gray_diff, 30, 255, cv2.THRESH_BINARY)
+        
+        # Color the differences in red
+        diff_colored = img1.copy()
+        diff_colored[thresh > 0] = [0, 0, 255]  # Red for differences
+        
+        cv2.imwrite(output_path, diff_colored)
+        return output_path
+    
+    def _log_comparison_html(self, expected_path: str, actual_path: str, diff_path: str,
+                            similarity: float, method: str, passed: bool):
+        """Log comparison results as HTML in Robot Framework report."""
+        
+        expected_b64 = self._encode_image_to_base64(expected_path)
+        actual_b64 = self._encode_image_to_base64(actual_path)
+        diff_b64 = self._encode_image_to_base64(diff_path)
+        
+        status_color = "green" if passed else "red"
+        status_text = "PASS" if passed else "FAIL"
+        
+        html = f"""
+        <div style="border: 2px solid {status_color}; padding: 15px; margin: 10px 0; border-radius: 5px;">
+            <h3 style="color: {status_color}; margin-top: 0;">Image Comparison: {status_text}</h3>
+            <p><strong>Similarity Score:</strong> {similarity:.2f}% (Method: {method})</p>
+            <p><strong>Expected Image:</strong> {os.path.basename(expected_path)}</p>
+            <p><strong>Actual Image:</strong> {os.path.basename(actual_path)}</p>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h4>Expected</h4>
+                    <img src="data:image/png;base64,{expected_b64}" 
+                         style="max-width: 100%; border: 1px solid #ccc;" 
+                         alt="Expected Image"/>
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <h4>Actual</h4>
+                    <img src="data:image/png;base64,{actual_b64}" 
+                         style="max-width: 100%; border: 1px solid #ccc;" 
+                         alt="Actual Image"/>
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <h4>Differences (Red)</h4>
+                    <img src="data:image/png;base64,{diff_b64}" 
+                         style="max-width: 100%; border: 1px solid #ccc;" 
+                         alt="Difference Image"/>
+                </div>
+            </div>
+        </div>
+        """
+        
+        logger.info(html, html=True)
+    
+    def compare_images(self, expected_image: str, actual_image: str, 
+                      threshold: float = 95.0, method: str = 'mse') -> bool:
+        """Compare two images and return True if similarity is above threshold.
+        
+        Args:
+            expected_image: Path to the expected/reference image
+            actual_image: Path to the actual/captured image
+            threshold: Minimum similarity percentage (0-100) for test to pass
+            method: Comparison method - 'mse' (default) or 'ssim'
+        
+        Returns:
+            True if images are similar above threshold, False otherwise
+            
+        Examples:
+        | ${result}= | Compare Images | ${EXPECTED_IMG} | ${ACTUAL_IMG} | 95.0 |
+        | Should Be True | ${result} | Images do not match expected |
+        """
+        
+        expected_path = Path(expected_image)
+        actual_path = Path(actual_image)
+        
+        if not expected_path.exists():
+            raise FileNotFoundError(f"Expected image not found: {expected_image}")
+        if not actual_path.exists():
+            raise FileNotFoundError(f"Actual image not found: {actual_image}")
+        
+        # Load images
+        img1 = cv2.imread(str(expected_path))
+        img2 = cv2.imread(str(actual_path))
+        
+        if img1 is None:
+            raise ValueError(f"Could not load expected image: {expected_image}")
+        if img2 is None:
+            raise ValueError(f"Could not load actual image: {actual_image}")
+        
+        # Resize if dimensions don't match
+        if img1.shape != img2.shape:
+            logger.warn(f"Image dimensions differ. Resizing actual image to match expected. "
+                       f"Expected: {img1.shape}, Actual: {img2.shape}")
+            img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
+        
+        # Calculate similarity
+        if method.lower() == 'ssim':
+            try:
+                from skimage.metrics import structural_similarity
+                similarity = self._calculate_similarity_ssim(img1, img2)
+            except ImportError:
+                logger.warn("scikit-image not installed. Falling back to MSE method.")
+                similarity = self._calculate_similarity_mse(img1, img2)
+        else:
+            similarity = self._calculate_similarity_mse(img1, img2)
+        
+        # Create difference image
+        output_dir = self._get_output_dir()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        diff_filename = f"diff_{timestamp}.png"
+        diff_path = output_dir / diff_filename
+        
+        self._create_diff_image(str(expected_path), str(actual_path), str(diff_path))
+        
+        # Determine pass/fail
+        passed = similarity >= threshold
+        
+        # Log results with embedded images
+        self._log_comparison_html(
+            str(expected_path), 
+            str(actual_path), 
+            str(diff_path),
+            similarity, 
+            method.upper(), 
+            passed
+        )
+        
+        # Log text summary
+        logger.info(f"Image Comparison Result: Similarity={similarity:.2f}%, "
+                   f"Threshold={threshold}%, Status={'PASS' if passed else 'FAIL'}")
+        
+        return passed
+    
+    def compare_images_and_fail_if_different(self, expected_image: str, actual_image: str,
+                                            threshold: float = 95.0, method: str = 'mse',
+                                            message: Optional[str] = None):
+        """Compare images and fail the test if similarity is below threshold.
+        
+        This is a convenience keyword that combines comparison and assertion.
+        
+        Args:
+            expected_image: Path to the expected/reference image
+            actual_image: Path to the actual/captured image
+            threshold: Minimum similarity percentage (0-100) for test to pass
+            method: Comparison method - 'mse' (default) or 'ssim'
+            message: Custom failure message (optional)
+            
+        Examples:
+        | Compare Images And Fail If Different | ${EXPECTED} | ${ACTUAL} | 95.0 |
+        | Compare Images And Fail If Different | ${EXPECTED} | ${ACTUAL} | 90.0 | ssim | Custom error message |
+        """
+        
+        result = self.compare_images(expected_image, actual_image, threshold, method)
+        
+        if not result:
+            if message is None:
+                message = (f"Image comparison failed: Similarity below {threshold}%. "
+                          f"Expected: {expected_image}, Actual: {actual_image}")
+            raise AssertionError(message)
+    
+    def capture_screen_region(self, x: int, y: int, width: int, height: int, 
+                             output_path: Optional[str] = None) -> str:
+        """Capture a specific region of the screen.
+        
+        Args:
+            x: X coordinate of top-left corner
+            y: Y coordinate of top-left corner
+            width: Width of the region
+            height: Height of the region
+            output_path: Path to save the screenshot (optional)
+            
+        Returns:
+            Path to the captured screenshot
+            
+        Examples:
+        | ${screenshot}= | Capture Screen Region | 100 | 100 | 400 | 300 |
+        | ${screenshot}= | Capture Screen Region | 0 | 0 | 800 | 600 | ${OUTPUT_DIR}/screenshot.png |
+        """
+        try:
+            import pyautogui
+        except ImportError:
+            raise ImportError("pyautogui not installed. Install it with: pip install pyautogui")
+        
+        screenshot = pyautogui.screenshot(region=(x, y, width, height))
+        
+        if output_path is None:
+            output_dir = self._get_output_dir()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path = output_dir / f"screen_capture_{timestamp}.png"
+        
+        screenshot.save(str(output_path))
+        
+        # Log the captured image to the report
+        img_b64 = self._encode_image_to_base64(str(output_path))
+        html = f"""
+        <div style="border: 2px solid #2196F3; padding: 15px; margin: 10px 0; border-radius: 5px;">
+            <h3 style="color: #2196F3; margin-top: 0;">Screen Capture</h3>
+            <p><strong>Region:</strong> x={x}, y={y}, width={width}, height={height}</p>
+            <p><strong>Saved to:</strong> {os.path.basename(str(output_path))}</p>
+            <div style="margin-top: 10px;">
+                <img src="data:image/png;base64,{img_b64}" 
+                     style="max-width: 100%; border: 1px solid #ccc;" 
+                     alt="Captured Screenshot"/>
+            </div>
+        </div>
+        """
+        logger.info(html, html=True)
+        logger.info(f"Screen region captured: {output_path}")
+        
+        return str(output_path)
+    
+    def get_image_similarity_score(self, image1: str, image2: str, method: str = 'mse') -> float:
+        """Get the similarity score between two images without passing/failing.
+        
+        Args:
+            image1: Path to first image
+            image2: Path to second image
+            method: Comparison method - 'mse' (default) or 'ssim'
+            
+        Returns:
+            Similarity score as a percentage (0-100)
+            
+        Examples:
+        | ${score}= | Get Image Similarity Score | ${IMG1} | ${IMG2} |
+        | Log | Similarity: ${score}% |
+        """
+        
+        img1 = cv2.imread(str(image1))
+        img2 = cv2.imread(str(image2))
+        
+        if img1 is None or img2 is None:
+            raise ValueError("Could not load one or both images")
+        
+        if img1.shape != img2.shape:
+            img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
+        
+        if method.lower() == 'ssim':
+            try:
+                from skimage.metrics import structural_similarity
+                similarity = self._calculate_similarity_ssim(img1, img2)
+            except ImportError:
+                logger.warn("scikit-image not installed. Falling back to MSE method.")
+                similarity = self._calculate_similarity_mse(img1, img2)
+        else:
+            similarity = self._calculate_similarity_mse(img1, img2)
+        
+        return similarity
