@@ -5,6 +5,7 @@ Library          SikuliLibrary    mode=OLD    timeout=10
 Library          OperatingSystem
 Library          Process
 Library          Collections
+Library          String
 Library          ../libraries/ImageComparisonLibrary.py
 Suite Setup      Start Sikuli Process
 Suite Teardown   Cleanup After Suite
@@ -19,7 +20,7 @@ ${ACTUAL_IMAGES_DIR}      ${CURDIR}${/}..${/}resources${/}Images${/}actual
 *** Test Cases ***
 Case1: Install AgileMark Application 
     [Documentation]    Installs the AgileMark application
-    [Tags]    sikuli    gui   agilemark    
+    [Tags]    sikuli    gui   agilemark    only    
     Start Sikuli Process
     # Open AgileMark installer
     Log    ========================== Open AgileMark installer ==========================
@@ -47,16 +48,7 @@ Case1: Install AgileMark Application
 
     # Restart AgileService to apply new config
     Log    ========================== Restart AgileService to apply new config ==========================
-    # First check if it's running as a service
-    ${service_check}=    Run Process    powershell    -Command    Get-Service -Name AgileService -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Status    shell=True
-    Log    Service check result: ${service_check.stdout}
-    
-    # If it's a service, restart it; otherwise restart as a process
-    ${is_service}=    Run Keyword And Return Status    Should Not Be Empty    ${service_check.stdout}
-    Run Keyword If    ${is_service}    Run Process    powershell    -Command    Restart-Service -Name AgileService.exe -Force    shell=True
-    
-    Sleep    3s
-    Log    AgileService restarted successfully
+    Restart AgileService
 
     # Copy config file to destination
     Log    ========================== Copy config file to destination ==========================
@@ -65,13 +57,14 @@ Case1: Install AgileMark Application
 
     # Capture actual screenshot for comparison regardless of pattern match result
     Log    ========================== Capture actual screenshot for comparison ==========================
-    ${actual_screenshot}=    Capture Screen Region    0    0    1920    1080    ${ACTUAL_IMAGES_DIR}${/}install_screen.png
+    ${actual_screenshot}=    Capture Screen Region    0    0    1920    1040    ${ACTUAL_IMAGES_DIR}${/}install_screen.png
     
     # Compare with expected image if it exists
     Log    ========================== Compare with expected image if it exists ==========================
-    ${expected_img}=    Set Variable    ${EXPECTED_IMAGES_DIR}${/}install_screen_expected.png
+    ${expected_img}=    Set Variable    ${EXPECTED_IMAGES_DIR}${/}patternAfterInstall.png
     ${expected_exists}=    Run Keyword And Return Status    File Should Exist    ${expected_img}
-    Run Keyword If    ${expected_exists}    Compare Images    ${expected_img}    ${actual_screenshot}    95.0
+    ${comparison_result}=    Run Keyword If    ${expected_exists}    Compare Images    ${expected_img}    ${actual_screenshot}    100.0
+    Run Keyword If    ${expected_exists} and not ${comparison_result}    Fail    Image comparison failed - images do not match. Check comparison in report.
     
     # Fail at the end if pattern was not found
     Log    ========================== Fail if pattern was not found ==========================
@@ -79,7 +72,9 @@ Case1: Install AgileMark Application
 
     Stop Sikuli Process
 
-Case2: Uninstall AgileMark Application 
+Case2: Verify Watermark display on different screen resolutions
+
+CaseX: Uninstall AgileMark Application 
     [Documentation]    Delete data associated with AgileMark application
     [Tags]    sikuli    gui   agilemark
     Start Sikuli Process
@@ -121,34 +116,6 @@ Case2: Uninstall AgileMark Application
 
     Stop Sikuli Process
 
-Case3: Image Comparison Example
-    [Documentation]    Demonstrates image comparison functionality with visual report
-    [Tags]    sikuli    gui    agilemark    image-comparison
-    
-    # Create directories for images
-    Create Directory    ${ACTUAL_IMAGES_DIR}
-    Create Directory    ${EXPECTED_IMAGES_DIR}
-    
-    # Example 1: Capture and compare a screen region
-    Log    Example: Capturing screen and comparing with expected image    console=True
-    
-    # In a real scenario, you would:
-    # 1. Capture actual screenshot from application
-    # ${actual_img}=    Capture Screen Region    100    100    400    300    ${ACTUAL_IMAGES_DIR}${/}screen_capture.png
-    
-    # 2. Compare with expected image
-    # ${result}=    Compare Images    ${EXPECTED_IMAGES_DIR}${/}expected_screen.png    ${actual_img}    95.0
-    # Should Be True    ${result}    Image comparison failed - see report for details
-    
-    # Example 2: Using the convenience keyword that fails automatically
-    # Compare Images And Fail If Different    ${EXPECTED_IMAGES_DIR}${/}expected_dialog.png    ${ACTUAL_IMAGES_DIR}${/}actual_dialog.png    95.0
-    
-    # Example 3: Get similarity score without pass/fail
-    # ${score}=    Get Image Similarity Score    ${EXPECTED_IMAGES_DIR}${/}image1.png    ${EXPECTED_IMAGES_DIR}${/}image2.png
-    # Log    Similarity Score: ${score}%
-    
-    Log    Image comparison keywords are ready to use. Add expected images to ${EXPECTED_IMAGES_DIR}    console=True
-
 *** Keywords ***
 Start Sikuli Process
     [Documentation]    Initializes SikuliX
@@ -158,21 +125,29 @@ Stop Sikuli Process
     [Documentation]    Cleanup after SikuliX operations
     Remove Image Path    ${IMAGE_DIR}
 
-Restart AgileService Process
-    [Documentation]    Restarts AgileService as a process (not a Windows service)
-    # Check if process is running
-    ${check_process}=    Run Process    tasklist    /FI    IMAGENAME eq AgileService.exe    shell=True
-    ${is_running}=    Run Keyword And Return Status    Should Contain    ${check_process.stdout}    AgileService.exe
-    
-    # Stop the process if running
-    Run Keyword If    ${is_running}    Run Process    taskkill    /F    /IM    AgileService.exe    shell=True
-    Run Keyword If    ${is_running}    Log    Stopped AgileService.exe
+Restart AgileService
+    [Documentation]    Restarts AgileService as a Windows service with elevated privileges
+    Log    Stopping AgileService Windows service with elevated privileges...
+    ${stop_cmd}=    Set Variable    Start-Process powershell -ArgumentList '-Command', 'Stop-Service -Name AgileService -Force -ErrorAction SilentlyContinue' -Verb RunAs -WindowStyle Hidden -Wait
+    ${stop_result}=    Run Process    powershell    -Command    ${stop_cmd}    shell=True
+    Log    Stop service stdout: ${stop_result.stdout}
+    Log    Stop service stderr: ${stop_result.stderr}
+    Log    Stop service return code: ${stop_result.rc}
     Sleep    2s
     
-    # Start the process
-    ${start_result}=    Start Process    C:\\Program Files (x86)\\AgileMark\\AgileService.exe    shell=True
-    Log    Started AgileService.exe with handle: ${start_result}
-    Sleep    2s
+    Log    Starting AgileService Windows service with elevated privileges...
+    ${start_cmd}=    Set Variable    Start-Process powershell -ArgumentList '-Command', 'Start-Service -Name AgileService' -Verb RunAs -WindowStyle Hidden -Wait
+    ${start_result}=    Run Process    powershell    -Command    ${start_cmd}    shell=True
+    Log    Start service stdout: ${start_result.stdout}
+    Log    Start service stderr: ${start_result.stderr}
+    Log    Start service return code: ${start_result.rc}
+    Sleep    7s
+    
+    # Verify service is running
+    Log    Verifying AgileService status...
+    ${status_result}=    Run Process    powershell    -Command    (Get-Service -Name AgileService).Status    shell=True
+    Log    AgileService status: ${status_result.stdout}
+    Should Contain    ${status_result.stdout}    Running    AgileService is not running after restart. Status: ${status_result.stdout}
 
 Cleanup After Suite
     [Documentation]    Cleanup suite and delete SikuliX log files
