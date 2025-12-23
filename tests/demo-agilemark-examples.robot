@@ -7,8 +7,11 @@ Library          Process
 Library          Collections
 Library          String
 Library          ../libraries/ImageComparisonLibrary.py
+Library          ../libraries/VideoRecorderLibrary.py
 Suite Setup      Start Sikuli Process
 Suite Teardown   Cleanup After Suite
+Test Setup       Start Test Recording
+Test Teardown    Stop Test Recording
 
 *** Variables ***
 ${IMAGE_DIR}     ${CURDIR}${/}..${/}resources${/}images${/}screens
@@ -73,6 +76,42 @@ Case1: Install AgileMark Application
     Stop Sikuli Process
 
 Case2: Verify Watermark display on different screen resolutions
+    [Documentation]    Tests watermark display at different screen resolutions
+    [Tags]    sikuli    gui    agilemark    resolution
+    Start Sikuli Process
+    
+    # Open Windows Display Settings
+    Log    ========================== Open Windows Display Settings ==========================
+    Open Display Settings
+
+    # Change to 1280 x 720 resolution
+    Log    ========================== Change to 1280 x 720 resolution ==========================
+    Change Resolution    resolution_1280x720.png    down
+
+    # Close Display Settings
+    Log    ========================== Close Display Settings ==========================
+    Close Display Settings
+    
+    Stop Sikuli Process
+
+Case3: Reset display with default screen resolutions
+    [Documentation]    Resets display to default 1920x1080 resolution
+    [Tags]    sikuli    gui    agilemark    resolution
+    Start Sikuli Process
+    
+    # Open Windows Display Settings
+    Log    ========================== Open Windows Display Settings ==========================
+    Open Display Settings
+
+    # Change to 1920 x 1080 resolution
+    Log    ========================== Change to 1920 x 1080 resolution ==========================
+    Change Resolution    resolution_1920x1080.png    up
+
+    # Close Display Settings
+    Log    ========================== Close Display Settings ==========================
+    Close Display Settings
+    
+    Stop Sikuli Process
 
 CaseX: Uninstall AgileMark Application 
     [Documentation]    Delete data associated with AgileMark application
@@ -149,6 +188,72 @@ Restart AgileService
     Log    AgileService status: ${status_result.stdout}
     Should Contain    ${status_result.stdout}    Running    AgileService is not running after restart. Status: ${status_result.stdout}
 
+Open Display Settings
+    [Documentation]    Opens Windows Display Settings
+    Log    Opening Windows Display Settings...
+    ${result}=    Run Process    powershell    -Command    Start-Process ms-settings:display    shell=True
+    # Wait for Display settings window to appear
+    Set Min Similarity    0.9
+    ${settings_opened}=    Run Keyword And Return Status    Wait Until Screen Contain    ${IMAGE_DIR}${/}display_settings.png    ${TIMEOUT}
+    Set Min Similarity    0.9
+    Click    ${IMAGE_DIR}${/}display_settings.png    0    30
+    # Scroll down to show more options if needed
+    Sleep    1s
+    Log    Scrolling down to bottom of Display Settings...
+    # Scroll down multiple times to reach the bottom
+    FOR    ${i}    IN RANGE    3
+        Wheel Down    5
+    END
+    Log    Scrolled to bottom of Display Settings
+
+Close Display Settings
+    [Documentation]    Closes Windows Display Settings
+    Log    Closing Windows Display Settings...
+    ${close_result}=    Run Process    powershell    -Command    Get-Process | Where-Object {$_.MainWindowTitle -like '*Settings*'} | Stop-Process -Force    shell=True
+    Wait Until Screen Not Contain    ${IMAGE_DIR}${/}display_settings.png    ${TIMEOUT}
+    Log    Display Settings closed
+
+Change Resolution
+    [Documentation]    Changes screen resolution with scrolling support
+    [Arguments]    ${resolution_image}    ${scroll_direction}=none
+    
+    # Click on resolution dropdown
+    Log    Clicking on resolution dropdown...
+    Click    ${IMAGE_DIR}${/}display_resolution_dropdown.png    0    30
+    Sleep    1s
+    
+    # Scroll if needed
+    Run Keyword If    '${scroll_direction}' == 'up'    Scroll Resolution List Up
+    Run Keyword If    '${scroll_direction}' == 'down'    Scroll Resolution List Down
+    
+    # Select resolution
+    Log    Selecting resolution: ${resolution_image}
+    Click    ${IMAGE_DIR}${/}${resolution_image}
+    Sleep    2s
+    
+    # Click Keep changes button
+    Log    Clicking Keep changes button...
+    Click    ${IMAGE_DIR}${/}keep_changes_button.png
+    Sleep    1s
+
+Scroll Resolution List Up
+    [Documentation]    Scrolls up in resolution list
+    Log    Scrolling up to show higher resolutions...
+    FOR    ${i}    IN RANGE    5
+        Wheel Up    5
+        Sleep    0.2s
+    END
+    Sleep    1s
+
+Scroll Resolution List Down
+    [Documentation]    Scrolls down in resolution list
+    Log    Scrolling down to show lower resolutions...
+    FOR    ${i}    IN RANGE    5
+        Wheel Down    5
+        Sleep    0.2s
+    END
+    Sleep    1s
+
 Cleanup After Suite
     [Documentation]    Cleanup suite and delete SikuliX log files
     Stop Remote Server
@@ -162,3 +267,18 @@ Delete Sikuli Log Files
     ${cleanup_command}=    Set Variable    Start-Sleep -Seconds 5; Get-ChildItem '${results_dir}' -Filter 'Sikuli_java_*' | Remove-Item -Force -ErrorAction SilentlyContinue
     Run Keyword And Ignore Error    Start Process    powershell.exe    -Command    ${cleanup_command}    shell=True
     Log    Scheduled delayed cleanup of SikuliX temporary log files
+
+Start Test Recording
+    [Documentation]    Starts video recording for the test
+    ${test_name}=    Get Variable Value    ${TEST NAME}    unknown_test
+    ${safe_name}=    Replace String    ${test_name}    ${SPACE}    _
+    ${safe_name}=    Replace String    ${safe_name}    :    -
+    Start Video Recording    ${safe_name}    10.0
+    Log    Started video recording for test: ${test_name}
+
+Stop Test Recording
+    [Documentation]    Stops video recording and embeds in report
+    ${video_path}=    Stop Video Recording
+    ${path_exists}=    Run Keyword And Return Status    Should Not Be Equal    ${video_path}    ${None}
+    Run Keyword If    ${path_exists}    Log    Video saved to: ${video_path}
+    ...    ELSE    Log    No video recording to save    level=WARN
