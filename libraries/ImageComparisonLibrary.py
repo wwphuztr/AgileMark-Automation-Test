@@ -197,9 +197,14 @@ class ImageComparisonLibrary:
         
         # Create difference image
         output_dir = self._get_output_dir()
+
+        # Create diff subdirectory
+        diff_dir = output_dir / 'diff'
+        diff_dir.mkdir(parents=True, exist_ok=True)
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         diff_filename = f"diff_{timestamp}.png"
-        diff_path = output_dir / diff_filename
+        diff_path = diff_dir / diff_filename
         
         self._create_diff_image(str(expected_path), str(actual_path), str(diff_path))
         
