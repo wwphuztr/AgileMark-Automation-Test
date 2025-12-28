@@ -148,10 +148,23 @@ CaseX: Uninstall AgileMark Application
     
     Sleep    2s
 
-    # Delete the AgileMark data folder
+    # Delete the AgileMark data folder with elevated privileges
     Log    ========================== Delete the AgileMark data folder ==========================
-    Remove Directory    C:\\Program Files (x86)\\AgileMark    recursive=True
-    Sleep    5
+    ${delete_cmd}=    Set Variable    Start-Process powershell -ArgumentList '-Command', 'Remove-Item -Path ''C:\\Program Files (x86)\\AgileMark'' -Recurse -Force -ErrorAction SilentlyContinue' -Verb RunAs -WindowStyle Hidden -Wait
+    ${delete_result}=    Run Process    powershell    -Command    ${delete_cmd}    shell=True
+    Log    Delete folder stdout: ${delete_result.stdout}
+    Log    Delete folder stderr: ${delete_result.stderr}
+    Log    Delete folder return code: ${delete_result.rc}
+    
+    Sleep    3s
+    
+    # Verify folder is deleted
+    Log    ========================== Verify folder is deleted ==========================
+    ${folder_exists}=    Run Keyword And Return Status    Directory Should Exist    C:\\Program Files (x86)\\AgileMark
+    Run Keyword If    not ${folder_exists}    Log    AgileMark folder successfully deleted
+    ...    ELSE    Log    WARNING: AgileMark folder still exists    level=WARN
+    
+    Sleep    2s
 
     Stop Sikuli Process
 
