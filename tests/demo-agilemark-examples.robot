@@ -150,25 +150,55 @@ CaseX: Uninstall AgileMark Application
 
     # Delete the AgileMark data folder with elevated privileges
     Log    ========================== ⚙️ DELETE THE AGILEMARK DATA FOLDER ==========================
-    ${delete_cmd}=    Set Variable    Start-Process powershell -ArgumentList '-Command', 'Remove-Item -Path ''C:\\Program Files (x86)\\AgileMark'' -Recurse -Force -ErrorAction SilentlyContinue' -Verb RunAs -WindowStyle Hidden -Wait
-    ${delete_result}=    Run Process    powershell    -Command    ${delete_cmd}    shell=True
-    Log    Delete folder stdout: ${delete_result.stdout}
-    Log    Delete folder stderr: ${delete_result.stderr}
-    Log    Delete folder return code: ${delete_result.rc}
     
+    # First attempt: Try to delete the entire folder with recursive force
+    ${delete_cmd}=    Set Variable    Start-Process powershell -ArgumentList '-Command', 'Remove-Item -Path ''C:\\Program Files (x86)\\AgileMark'' -Recurse -Force -ErrorAction SilentlyContinue' -Verb RunAs -WindowStyle Hidden -Wait
+    ${delete_result}=    Run Process    powershell    -Command    ${delete_cmd}    shell=True    
     Sleep    3s
     
-    # Verify folder is deleted
-    Log    ========================== ⚙️ VERIFY FOLDER IS DELETED ==========================
+    # Check if folder still exists and attempt more aggressive cleanup if needed
+    Log    ========================== ⚙️ VERIFY FOLDER DELETION AND CLEANUP REMAINING FILES ==========================
     ${folder_exists}=    Run Keyword And Return Status    Directory Should Exist    C:\\Program Files (x86)\\AgileMark
-    Run Keyword If    not ${folder_exists}    Log    AgileMark folder successfully deleted
-    ...    ELSE    Log    WARNING: AgileMark folder still exists    level=WARN
+    
+    Run Keyword If    ${folder_exists}    Log    WARNING: AgileMark folder still exists, attempting detailed cleanup...    level=WARN
+    
+    # If folder still exists, try to delete specific files and subdirectories
+    Run Keyword If    ${folder_exists}    Delete AgileMark Files Individually
     
     Sleep    2s
+    
+    # Final verification
+    Log    ========================== ⚙️ FINAL VERIFICATION ==========================
+    ${final_check}=    Run Keyword And Return Status    Directory Should Exist    C:\\Program Files (x86)\\AgileMark
+    Run Keyword If    not ${final_check}    Log    AgileMark folder successfully deleted
+    ...    ELSE    Log    WARNING: AgileMark folder still exists after cleanup attempts    level=WARN
+    
+    Sleep    1s
 
     Stop Sikuli Process
 
 *** Keywords ***
+Delete AgileMark Files Individually
+    [Documentation]    Attempts to delete AgileMark files individually with elevated privileges
+    Log    Attempting to delete individual files and subdirectories...
+    
+    # Delete store.cfg specifically
+    ${delete_cfg_cmd}=    Set Variable    Start-Process powershell -ArgumentList '-Command', 'Remove-Item -Path ''C:\\Program Files (x86)\\AgileMark\\store.cfg'' -Force -ErrorAction SilentlyContinue' -Verb RunAs -WindowStyle Hidden -Wait
+    ${cfg_result}=    Run Process    powershell    -Command    ${delete_cfg_cmd}    shell=True
+    Log    Delete store.cfg result: ${cfg_result.stdout} | ${cfg_result.stderr}
+    Sleep    1s
+    
+    # Get list of all files and folders in AgileMark directory
+    ${list_cmd}=    Set Variable    Get-ChildItem -Path 'C:\\Program Files (x86)\\AgileMark' -Recurse -Force -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+    ${list_result}=    Run Process    powershell    -Command    ${list_cmd}    shell=True
+    Log    Remaining files/folders: ${list_result.stdout}
+    
+    # Force delete all contents with takeown and icacls for permission issues
+    ${force_delete_cmd}=    Set Variable    Start-Process powershell -ArgumentList '-Command', '$path = ''C:\\Program Files (x86)\\AgileMark''; if (Test-Path $path) { takeown /f $path /r /d y > $null 2>&1; icacls $path /grant administrators:F /t > $null 2>&1; Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue }' -Verb RunAs -WindowStyle Hidden -Wait
+    ${force_result}=    Run Process    powershell    -Command    ${force_delete_cmd}    shell=True
+    Log    Force delete with takeown result: ${force_result.stdout} | ${force_result.stderr}
+    Sleep    2s
+
 Start Sikuli Process
     [Documentation]    Initializes SikuliX
     Add Image Path    ${IMAGE_DIR}
