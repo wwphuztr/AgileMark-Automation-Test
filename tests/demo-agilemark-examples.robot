@@ -26,17 +26,17 @@ Case1: Install AgileMark Application
     [Tags]    sikuli    gui   agilemark    only    
     Start Sikuli Process
     # Open AgileMark installer
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== OPEN AGILEMARK INSTALLER ==========================</span>    html=True
+    Log    ========================== ⚙️ OPEN AGILEMARK INSTALLER ==========================
     Open Application    ${CURDIR}${/}..${/}resources${/}Apps${/}AgileMark 1_1_2_8 GR.msi
     Sleep    5s
 
     # Wait the pattern to appear on screen with high similarity threshold
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== WAIT FOR PATTERN TO APPEAR ON SCREEN WITH HIGH SIMILARITY THRESHOLD ==========================</span>    html=True
+    Log    ========================== WAIT FOR PATTERN TO APPEAR ON SCREEN WITH HIGH SIMILARITY THRESHOLD ==========================
     Set Min Similarity    0.95
     ${pattern_found}=    Run Keyword And Return Status    Wait Until Screen Contain    ${IMAGE_DIR}${/}patternAfterInstall.png    ${LONG_TIMEOUT}
 
     # Delete the config file if it exists to ensure a fresh install
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== DELETE THE CONFIG FILE IF IT EXISTS TO ENSURE A FRESH INSTALL ==========================</span>    html=True
+    Log    ========================== ⚙️ DELETE THE CONFIG FILE IF IT EXISTS TO ENSURE A FRESH INSTALL ==========================
     ${config_file}=    Set Variable    C:\\Program Files (x86)\\AgileMark\\store.cfg
     ${config_exists}=    Run Keyword And Return Status    File Should Exist    ${config_file}
     Run Keyword If    ${config_exists}    Remove File    ${config_file}
@@ -44,33 +44,33 @@ Case1: Install AgileMark Application
     ...    ELSE    Log    Config file does not exist: ${config_file}
 
     # Move the expected config file into place after deletion
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== MOVE THE EXPECTED CONFIG FILE INTO PLACE AFTER DELETION ==========================</span>    html=True
+    Log    ========================== ⚙️ MOVE THE EXPECTED CONFIG FILE INTO PLACE AFTER DELETION ==========================
     ${source_config}=    Set Variable    ${CURDIR}${/}..${/}resources${/}Configs${/}store.cfg
     ${dest_dir}=    Set Variable    C:\\Program Files (x86)\\AgileMark
     ${dest_config}=    Set Variable    ${dest_dir}\\store.cfg
 
     # Restart AgileService to apply new config
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== RESTART AGILESERVICE TO APPLY NEW CONFIG ==========================</span>    html=True
+    Log    ========================== ⚙️ RESTART AGILESERVICE TO APPLY NEW CONFIG ==========================
     Restart AgileService
 
     # Copy config file to destination
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== COPY CONFIG FILE TO DESTINATION ==========================</span>    html=True
+    Log    ========================== ⚙️ COPY CONFIG FILE TO DESTINATION ==========================
     Copy File    ${source_config}    ${dest_config}
     Log    Copied config file from ${source_config} to ${dest_config}
 
     # Capture actual screenshot for comparison regardless of pattern match result
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== CAPTURE ACTUAL SCREENSHOT FOR COMPARISON ==========================</span>    html=True
+    Log    ========================== ⚙️ CAPTURE ACTUAL SCREENSHOT FOR COMPARISON ==========================
     ${actual_screenshot}=    Capture Screen Region    0    0    1920    1040    ${ACTUAL_IMAGES_DIR}${/}install_screen.png
     
     # Compare with expected image if it exists
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== COMPARE WITH EXPECTED IMAGE IF IT EXISTS ==========================</span>    html=True
+    Log    ========================== ⚙️ COMPARE WITH EXPECTED IMAGE IF IT EXISTS ==========================
     ${expected_img}=    Set Variable    ${EXPECTED_IMAGES_DIR}${/}patternAfterInstall.png
     ${expected_exists}=    Run Keyword And Return Status    File Should Exist    ${expected_img}
     ${comparison_result}=    Run Keyword If    ${expected_exists}    Compare Images    ${expected_img}    ${actual_screenshot}    100.0
     Run Keyword If    ${expected_exists} and not ${comparison_result}    Fail    Image comparison failed - images do not match. Check comparison in report.
     
     # Fail at the end if pattern was not found
-    Log    <span style="color: #ff6600; font-weight: bold;">========================== FAIL IF PATTERN WAS NOT FOUND ==========================</span>    html=True
+    Log    ========================== ⚠️ FAIL IF PATTERN WAS NOT FOUND ==========================
     Run Keyword If    not ${pattern_found}    Fail    Pattern '${IMAGE_DIR}${/}patternAfterInstall.png' was not found on screen. Check image comparison in report.
 
     Stop Sikuli Process
@@ -81,15 +81,15 @@ Case2: Verify Watermark display on different screen resolutions
     Start Sikuli Process
     
     # Open Windows Display Settings
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== OPEN WINDOWS DISPLAY SETTINGS ==========================</span>    html=True
+    Log    ========================== ⚙️ OPEN WINDOWS DISPLAY SETTINGS ==========================
     Open Display Settings
 
     # Change to 1280 x 720 resolution
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== CHANGE TO 1280 X 720 RESOLUTION ==========================</span>    html=True
+    Log    ========================== ⚙️ CHANGE TO 1280 X 720 RESOLUTION ==========================
     Change Resolution    resolution_1280x720.png    down
 
     # Close Display Settings
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== CLOSE DISPLAY SETTINGS ==========================</span>    html=True
+    Log    ========================== ⚙️ CLOSE DISPLAY SETTINGS ==========================
     Close Display Settings
     
     Stop Sikuli Process
@@ -100,15 +100,15 @@ Case3: Reset display with default screen resolutions
     Start Sikuli Process
     
     # Open Windows Display Settings
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== OPEN WINDOWS DISPLAY SETTINGS ==========================</span>    html=True
+    Log    ========================== ⚙️ OPEN WINDOWS DISPLAY SETTINGS ==========================
     Open Display Settings
 
     # Change to 1920 x 1080 resolution
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== CHANGE TO 1920 X 1080 RESOLUTION ==========================</span>    html=True
+    Log    ========================== ⚙️ CHANGE TO 1920 X 1080 RESOLUTION ==========================
     Change Resolution    resolution_1920x1080.png    up
 
     # Close Display Settings
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== CLOSE DISPLAY SETTINGS ==========================</span>    html=True
+    Log    ========================== ⚙️ CLOSE DISPLAY SETTINGS ==========================
     Close Display Settings
     
     Stop Sikuli Process
@@ -119,14 +119,14 @@ CaseX: Uninstall AgileMark Application
     Start Sikuli Process
 
     # Check if AgileMark and AgileService processes are running
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== CHECK IF AGILEMARK AND AGILESERVICE PROCESSES ARE RUNNING ==========================</span>    html=True
+    Log    ========================== ⚙️ CHECK IF AGILEMARK AND AGILESERVICE PROCESSES ARE RUNNING ==========================
     ${check_result}=    Run Process    tasklist    /FI    IMAGENAME eq AgileMark.exe    shell=True
     Log    AgileMark process check: ${check_result.stdout}
     ${check_service}=    Run Process    tasklist    /FI    IMAGENAME eq AgileService.exe    shell=True
     Log    AgileService process check: ${check_service.stdout}
     
     # Force kill both AgileMark and AgileService processes with elevated privileges
-    Log    <span style="color: #ff6600; font-weight: bold;">========================== FORCE KILL BOTH AGILEMARK AND AGILESERVICE PROCESSES WITH ELEVATED PRIVILEGES ==========================</span>    html=True
+    Log    ========================== ⚙️ FORCE KILL BOTH AGILEMARK AND AGILESERVICE PROCESSES WITH ELEVATED PRIVILEGES ==========================
     ${kill_cmd}=    Set Variable    Start-Process powershell -ArgumentList '-Command', 'Stop-Process -Name AgileMark,AgileService -Force -ErrorAction SilentlyContinue' -Verb RunAs -WindowStyle Hidden -Wait
     ${kill_result}=    Run Process    powershell    -Command    ${kill_cmd}    shell=True
     Log    PowerShell elevated kill stdout: ${kill_result.stdout}
@@ -136,7 +136,7 @@ CaseX: Uninstall AgileMark Application
     Sleep    1s
     
     # Verify if processes still exist
-    Log    <span style="color: #0066cc; font-weight: bold;">========================== VERIFY IF PROCESSES STILL EXIST ==========================</span>    html=True
+    Log    ========================== ⚙️ VERIFY IF PROCESSES STILL EXIST ==========================
     ${verify_agilemark}=    Run Process    tasklist    /FI    IMAGENAME eq AgileMark.exe    shell=True
     ${agilemark_found}=    Run Keyword And Return Status    Should Contain    ${verify_agilemark.stdout}    AgileMark.exe
     ${verify_service}=    Run Process    tasklist    /FI    IMAGENAME eq AgileService.exe    shell=True
@@ -148,10 +148,23 @@ CaseX: Uninstall AgileMark Application
     
     Sleep    2s
 
-    # Delete the AgileMark data folder
-    Log    <span style="color: #ff0000; font-weight: bold;">========================== DELETE THE AGILEMARK DATA FOLDER ==========================</span>    html=True
-    Remove Directory    C:\\Program Files (x86)\\AgileMark    recursive=True
-    Sleep    5
+    # Delete the AgileMark data folder with elevated privileges
+    Log    ========================== ⚙️ DELETE THE AGILEMARK DATA FOLDER ==========================
+    ${delete_cmd}=    Set Variable    Start-Process powershell -ArgumentList '-Command', 'Remove-Item -Path ''C:\\Program Files (x86)\\AgileMark'' -Recurse -Force -ErrorAction SilentlyContinue' -Verb RunAs -WindowStyle Hidden -Wait
+    ${delete_result}=    Run Process    powershell    -Command    ${delete_cmd}    shell=True
+    Log    Delete folder stdout: ${delete_result.stdout}
+    Log    Delete folder stderr: ${delete_result.stderr}
+    Log    Delete folder return code: ${delete_result.rc}
+    
+    Sleep    3s
+    
+    # Verify folder is deleted
+    Log    ========================== ⚙️ VERIFY FOLDER IS DELETED ==========================
+    ${folder_exists}=    Run Keyword And Return Status    Directory Should Exist    C:\\Program Files (x86)\\AgileMark
+    Run Keyword If    not ${folder_exists}    Log    AgileMark folder successfully deleted
+    ...    ELSE    Log    WARNING: AgileMark folder still exists    level=WARN
+    
+    Sleep    2s
 
     Stop Sikuli Process
 
