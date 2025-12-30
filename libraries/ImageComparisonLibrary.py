@@ -78,7 +78,7 @@ class ImageComparisonLibrary:
         return max(0, similarity)
     
     def _create_diff_image(self, img1_path: str, img2_path: str, output_path: str) -> str:
-        """Create a visual difference image highlighting changes."""
+        """Create a highly detailed visual difference image with pixel-by-pixel comparison."""
         img1 = cv2.imread(img1_path)
         img2 = cv2.imread(img2_path)
         
@@ -86,18 +86,93 @@ class ImageComparisonLibrary:
         if img1.shape != img2.shape:
             img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
         
-        # Create difference image
-        diff = cv2.absdiff(img1, img2)
+        h, w = img1.shape[:2]
         
-        # Enhance differences for visibility
-        gray_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray_diff, 30, 255, cv2.THRESH_BINARY)
+        # Create a comparison image (2 panels side by side: Heatmap and Overlay)
+        comparison_height = h + 60  # Extra space for labels
+        comparison_width = w * 2 + 90  # Two panels with margins
+        comparison = np.ones((comparison_height, comparison_width, 3), dtype=np.uint8) * 255
         
-        # Color the differences in red
-        diff_colored = img1.copy()
-        diff_colored[thresh > 0] = [0, 0, 255]  # Red for differences
+        # Panel positions
+        margin = 30
         
-        cv2.imwrite(output_path, diff_colored)
+        # Calculate pixel differences
+        diff_abs = cv2.absdiff(img1, img2)
+        diff_gray = cv2.cvtColor(diff_abs, cv2.COLOR_BGR2GRAY)
+        
+        # Count different pixels
+        diff_mask = diff_gray > 0  # Any difference at all
+        diff_pixels = np.sum(diff_mask)
+        total_pixels = h * w
+        diff_percentage = (diff_pixels / total_pixels) * 100
+        
+        # --- Panel 1: Pixel-Perfect Absolute Difference Heatmap (Left) ---
+        diff_heatmap = cv2.applyColorMap(diff_gray, cv2.COLORMAP_JET)
+        comparison[margin:margin+h, margin:margin+w] = diff_heatmap
+        label = f'DIFFERENCE HEATMAP ({diff_pixels} pixels, {diff_percentage:.2f}%)'
+        cv2.putText(comparison, label, (margin+5, margin-10), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        
+        # --- Panel 2: High-Contrast Difference Overlay (Right) ---
+        diff_overlay = img1.copy()
+        
+        # Create mask with different thresholds for different colors
+        # Very subtle differences (1-10): Yellow
+        subtle_diff = (diff_gray > 0) & (diff_gray <= 10)
+        diff_overlay[subtle_diff] = [0, 255, 255]  # Yellow
+        
+        # Moderate differences (11-50): Orange
+        moderate_diff = (diff_gray > 10) & (diff_gray <= 50)
+        diff_overlay[moderate_diff] = [0, 165, 255]  # Orange
+        
+        # Significant differences (>50): Red
+        significant_diff = diff_gray > 50
+        diff_overlay[significant_diff] = [0, 0, 255]  # Red
+        
+        # Add bounding boxes around difference regions
+        contours, _ = cv2.findContours(diff_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            if cv2.contourArea(contour) > 5:  # Filter very small noise
+                x, y, w_box, h_box = cv2.boundingRect(contour)
+                cv2.rectangle(diff_overlay, (x, y), (x + w_box, y + h_box), (255, 0, 255), 2)
+        
+        comparison[margin:margin+h, margin*2+w:margin*2+w*2] = diff_overlay
+        cv2.putText(comparison, 'DIFFERENCES OVERLAY', (margin*2+w+5, margin-10), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        
+        # Add legend for overlay at the bottom
+        legend_y = margin + h + 10
+        legend_x = margin*2 + w + 10
+        
+        cv2.rectangle(comparison, (legend_x, legend_y), (legend_x+20, legend_y+15), (0, 255, 255), -1)
+        cv2.putText(comparison, 'Subtle (1-10)', (legend_x+25, legend_y+12), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
+        
+        cv2.rectangle(comparison, (legend_x+150, legend_y), (legend_x+170, legend_y+15), (0, 165, 255), -1)
+        cv2.putText(comparison, 'Moderate (11-50)', (legend_x+175, legend_y+12), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
+        
+        cv2.rectangle(comparison, (legend_x+330, legend_y), (legend_x+350, legend_y+15), (0, 0, 255), -1)
+        cv2.putText(comparison, 'Significant (>50)', (legend_x+355, legend_y+12), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
+        
+        cv2.imwrite(output_path, comparison)
+        
+        # Also save individual diff files for detailed analysis
+        output_dir = Path(output_path).parent
+        base_name = Path(output_path).stem
+        
+        # Save raw difference image
+        cv2.imwrite(str(output_dir / f"{base_name}_raw_diff.png"), diff_abs)
+        
+        # Save difference mask (binary)
+        diff_binary = np.zeros_like(img1)
+        diff_binary[diff_mask] = [255, 255, 255]
+        cv2.imwrite(str(output_dir / f"{base_name}_mask.png"), diff_binary)
+        
+        # Log statistics
+        logger.info(f"Pixel-by-pixel comparison: {diff_pixels}/{total_pixels} pixels differ ({diff_percentage:.4f}%)")
+        
         return output_path
     
     def _log_comparison_html(self, expected_path: str, actual_path: str, diff_path: str,
