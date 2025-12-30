@@ -274,9 +274,10 @@ Open Display Settings
     Sleep    1s
     Log    Scrolling down to bottom of Display Settings...
     # Scroll down multiple times to reach the bottom
-    FOR    ${i}    IN RANGE    3
+    FOR    ${i}    IN RANGE    2
         Wheel Down    5
     END
+    Sleep    2s
     Log    Scrolled to bottom of Display Settings
 
 Close Display Settings
@@ -292,7 +293,7 @@ Change Resolution
     
     # Click on resolution dropdown
     Log    Clicking on resolution dropdown...
-    Click    ${IMAGE_DIR}${/}display_resolution_dropdown.png    0    30
+    Click    ${IMAGE_DIR}${/}display_resolution_dropdown.png    600    0
     Sleep    1s
     
     # Scroll if needed
@@ -301,6 +302,7 @@ Change Resolution
     
     # Select resolution
     Log    Selecting resolution: ${resolution_image}
+    Set Min Similarity    0.8
     Click    ${IMAGE_DIR}${/}${resolution_image}
     Sleep    2s
     
