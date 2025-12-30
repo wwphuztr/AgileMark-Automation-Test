@@ -144,7 +144,7 @@ class ImageComparisonLibrary:
         logger.info(html, html=True)
     
     def compare_images(self, expected_image: str, actual_image: str, 
-                      threshold: float = 95.0, method: str = 'mse') -> bool:
+                      threshold: float = 100.0, method: str = 'mse') -> bool:
         """Compare two images and return True if similarity is above threshold.
         
         Args:

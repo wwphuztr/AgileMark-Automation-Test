@@ -25,15 +25,15 @@ Case1: Install AgileMark Application
     [Documentation]    Installs the AgileMark application
     [Tags]    sikuli    gui   agilemark    only    
     Start Sikuli Process
-    # # Open AgileMark installer
-    # Log    ========================== ⚙️ OPEN AGILEMARK INSTALLER ==========================
-    # Open Application    ${CURDIR}${/}..${/}resources${/}Apps${/}AgileMark 1_1_2_8 GR.msi
-    # Sleep    5s
+    # Open AgileMark installer
+    Log    ========================== ⚙️ OPEN AGILEMARK INSTALLER ==========================
+    Open Application    ${CURDIR}${/}..${/}resources${/}Apps${/}AgileMark 1_1_2_8 GR.msi
+    Sleep    5s
 
-    # # Wait the pattern to appear on screen with high similarity threshold
-    # Log    ========================== WAIT FOR PATTERN TO APPEAR ON SCREEN WITH HIGH SIMILARITY THRESHOLD ==========================
-    # Set Min Similarity    0.95
-    # ${pattern_found}=    Run Keyword And Return Status    Wait Until Screen Contain    ${IMAGE_DIR}${/}patternAfterInstall.png    ${LONG_TIMEOUT}
+    # Wait the pattern to appear on screen with high similarity threshold
+    Log    ========================== WAIT FOR PATTERN TO APPEAR ON SCREEN WITH HIGH SIMILARITY THRESHOLD ==========================
+    Set Min Similarity    0.95
+    ${pattern_found}=    Run Keyword And Return Status    Wait Until Screen Contain    ${IMAGE_DIR}${/}patternAfterInstall.png    ${LONG_TIMEOUT}
 
     # Delete the config file if it exists to ensure a fresh install
     Log    ========================== ⚙️ DELETE THE CONFIG FILE IF IT EXISTS TO ENSURE A FRESH INSTALL ==========================
@@ -43,35 +43,33 @@ Case1: Install AgileMark Application
     Run Keyword If    ${config_exists}    Log    Deleted config file: ${config_file}
     ...    ELSE    Log    Config file does not exist: ${config_file}
 
-    # # Move the expected config file into place after deletion
-    # Log    ========================== ⚙️ MOVE THE EXPECTED CONFIG FILE INTO PLACE AFTER DELETION ==========================
-    # ${source_config}=    Set Variable    ${CURDIR}${/}..${/}resources${/}Configs${/}store.cfg
-    # ${dest_dir}=    Set Variable    C:\\Program Files (x86)\\AgileMark
-    # ${dest_config}=    Set Variable    ${dest_dir}\\store.cfg
+    # Move the expected config file into place after deletion
+    Log    ========================== ⚙️ MOVE THE EXPECTED CONFIG FILE INTO PLACE AFTER DELETION ==========================
+    ${source_config}=    Set Variable    ${CURDIR}${/}..${/}resources${/}Configs${/}store.cfg
+    ${dest_dir}=    Set Variable    C:\\Program Files (x86)\\AgileMark
+    ${dest_config}=    Set Variable    ${dest_dir}\\store.cfg
+    Copy Config File With Elevated Privileges    ${source_config}    ${dest_config}
+    Log    Copied config file from ${source_config} to ${dest_config}
 
-    # # Restart AgileService to apply new config
-    # Log    ========================== ⚙️ RESTART AGILESERVICE TO APPLY NEW CONFIG ==========================
-    # Restart AgileService
-
-    # # Copy config file to destination
-    # Log    ========================== ⚙️ COPY CONFIG FILE TO DESTINATION ==========================
-    # Copy File    ${source_config}    ${dest_config}
-    # Log    Copied config file from ${source_config} to ${dest_config}
-
-    # # Capture actual screenshot for comparison regardless of pattern match result
-    # Log    ========================== ⚙️ CAPTURE ACTUAL SCREENSHOT FOR COMPARISON ==========================
-    # ${actual_screenshot}=    Capture Screen Region    0    0    1920    1040    ${ACTUAL_IMAGES_DIR}${/}install_screen.png
+    # Restart AgileService to apply new config
+    Log    ========================== ⚙️ RESTART AGILESERVICE TO APPLY NEW CONFIG ==========================
+    Restart AgileService
     
-    # # Compare with expected image if it exists
-    # Log    ========================== ⚙️ COMPARE WITH EXPECTED IMAGE IF IT EXISTS ==========================
-    # ${expected_img}=    Set Variable    ${EXPECTED_IMAGES_DIR}${/}patternAfterInstall.png
-    # ${expected_exists}=    Run Keyword And Return Status    File Should Exist    ${expected_img}
-    # ${comparison_result}=    Run Keyword If    ${expected_exists}    Compare Images    ${expected_img}    ${actual_screenshot}    100.0
-    # Run Keyword If    ${expected_exists} and not ${comparison_result}    Fail    Image comparison failed - images do not match. Check comparison in report.
+    # Capture actual screenshot for comparison regardless of pattern match result
+    Log    ========================== ⚙️ CAPTURE ACTUAL SCREENSHOT FOR COMPARISON ==========================
+    ${actual_screenshot}=    Capture Screen Region    0    0    1920    1035    ${ACTUAL_IMAGES_DIR}${/}install_screen.png
     
-    # # Fail at the end if pattern was not found
-    # Log    ========================== ⚠️ FAIL IF PATTERN WAS NOT FOUND ==========================
-    # Run Keyword If    not ${pattern_found}    Fail    Pattern '${IMAGE_DIR}${/}patternAfterInstall.png' was not found on screen. Check image comparison in report.
+    # Compare with expected image if it exists
+    Log    ========================== ⚙️ COMPARE WITH EXPECTED IMAGE IF IT EXISTS ==========================
+    ${expected_img}=    Set Variable    ${EXPECTED_IMAGES_DIR}${/}patternAfterInstall.png
+    ${expected_exists}=    Run Keyword And Return Status    File Should Exist    ${expected_img}
+    Run Keyword If    not ${expected_exists}    Fail    Expected image does not exist: ${expected_img}
+    ${comparison_result}=    Compare Images    ${expected_img}    ${actual_screenshot}    100.0
+    Run Keyword If    not ${comparison_result}    Fail    Image comparison failed - images do not match. Check comparison in report.
+    
+    # Fail at the end if pattern was not found
+    Log    ========================== ⚠️ FAIL IF PATTERN WAS NOT FOUND ==========================
+    Run Keyword If    not ${pattern_found}    Fail    Pattern '${IMAGE_DIR}${/}patternAfterInstall.png' was not found on screen. Check image comparison in report.
 
     Stop Sikuli Process
 
@@ -193,6 +191,22 @@ Delete Config File With Elevated Privileges
     ${file_still_exists}=    Run Keyword And Return Status    File Should Exist    ${file_path}
     Run Keyword If    ${file_still_exists}    Log    WARNING: File still exists after deletion attempt: ${file_path}    level=WARN
     ...    ELSE    Log    Successfully deleted: ${file_path}
+
+Copy Config File With Elevated Privileges
+    [Documentation]    Copies a file with elevated privileges using PowerShell
+    [Arguments]    ${source_path}    ${dest_path}
+    Log    Copying config file with elevated privileges from ${source_path} to ${dest_path}
+    
+    # Ensure destination directory exists and copy file with elevated privileges
+    ${copy_cmd}=    Set Variable    Start-Process powershell -ArgumentList '-Command', '$dest = ''${dest_path}''; $destDir = Split-Path $dest; if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }; Copy-Item -Path ''${source_path}'' -Destination $dest -Force' -Verb RunAs -WindowStyle Hidden -Wait
+    ${copy_result}=    Run Process    powershell    -Command    ${copy_cmd}    shell=True
+    Log    Copy command executed: ${copy_result.stdout} | ${copy_result.stderr}
+    Sleep    2s
+    
+    # Verify copy
+    ${file_exists}=    Run Keyword And Return Status    File Should Exist    ${dest_path}
+    Run Keyword If    ${file_exists}    Log    Successfully copied to: ${dest_path}
+    ...    ELSE    Log    WARNING: File was not copied successfully to: ${dest_path}    level=WARN
 
 Delete AgileMark Files Individually
     [Documentation]    Attempts to delete AgileMark files individually with elevated privileges
