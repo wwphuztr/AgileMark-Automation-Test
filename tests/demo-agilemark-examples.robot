@@ -33,7 +33,7 @@ Case1: Install AgileMark Application
     # Wait the pattern to appear on screen with high similarity threshold
     Log    ========================== WAIT FOR PATTERN TO APPEAR ON SCREEN WITH HIGH SIMILARITY THRESHOLD ==========================
     Set Min Similarity    0.95
-    ${actual_screenshot}=    Capture Screen Region    0    0    1920    1035    ${EXPECTED_IMAGES_DIR}${/}patternAfterInstall.png 
+    #Update# Capture Screen Region    0    0    1920    1035    ${EXPECTED_IMAGES_DIR}${/}patternAfterInstall.png 
     ${pattern_found}=    Run Keyword And Return Status    Wait Until Screen Contain    ${IMAGE_DIR}${/}patternAfterInstall.png    ${LONG_TIMEOUT}
 
     # Delete the config file if it exists to ensure a fresh install
