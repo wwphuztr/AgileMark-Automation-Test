@@ -321,15 +321,13 @@ Change Resolution
     Log    Selecting resolution: ${resolution_image}
     Set Min Similarity    0.8
     
-    # Click    ${IMAGE_DIR}${/}${resolution_image}
     Click Text    text=${resolution_image}   
     Sleep    6s
     
     # Click Keep changes button
     Log    Clicking Keep changes button...
-    #Update# Capture Screen Region    475    366    161    41    ${IMAGE_DIR}${/}keep_changes_button.png
-    # Click    ${IMAGE_DIR}${/}keep_changes_button.png
-    Click Text    text=Keep changes
+    # Manual update baselined image
+    Click    ${IMAGE_DIR}${/}keep_changes_button.png
     Sleep    1s
 
 Scroll Resolution List Up
