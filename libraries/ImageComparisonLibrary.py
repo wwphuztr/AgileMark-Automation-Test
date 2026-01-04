@@ -5,6 +5,7 @@ Provides image comparison capabilities with detailed reporting
 
 import os
 import base64
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Tuple, Optional
@@ -285,6 +286,7 @@ class ImageComparisonLibrary:
         
         # Determine pass/fail
         passed = similarity >= threshold
+        logger.debug(f"Image similarity: {similarity:.2f}%, Threshold: {threshold}%, Status: {'PASS' if passed else 'FAIL'}")
         
         # Log results with embedded images
         self._log_comparison_html(
@@ -380,6 +382,27 @@ class ImageComparisonLibrary:
         
         return str(output_path)
     
+    def update_capture_screen_region(self, x: int, y: int, width: int, height: int, 
+                             output_path: Optional[str] = None) -> str:
+        time.sleep(3)
+        
+        try:
+            import pyautogui
+        except ImportError:
+            raise ImportError("pyautogui not installed. Install it with: pip install pyautogui")
+        
+        screenshot = pyautogui.screenshot(region=(x, y, width, height))
+        
+        if output_path is None:
+            output_dir = self._get_output_dir()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path = output_dir / f"screen_capture_{timestamp}.png"
+        
+        screenshot.save(str(output_path))
+
+        # Wait 3 seconds before capturing to ensure screen is stable
+        time.sleep(3)
+            
     def get_image_similarity_score(self, image1: str, image2: str, method: str = 'mse') -> float:
         """Get the similarity score between two images without passing/failing.
         
