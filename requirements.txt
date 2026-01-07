@@ -6,6 +6,9 @@ robotframework==7.0.1
 # SikuliX Library for Robot Framework
 robotframework-SikuliLibrary==2.0.5
 
+# Playwright for Robot Framework
+robotframework-browser
+
 # Additional useful libraries
 robotframework-seleniumlibrary==6.2.0
 robotframework-requests==0.9.5

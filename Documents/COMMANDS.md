@@ -140,7 +140,7 @@ while ($true) {
                 
                 # Robot Framework format
                 Write-Host "📋 ROBOT FRAMEWORK SYNTAX:" -ForegroundColor Magenta
-                Write-Host "#Update# Capture Screen Region    $x    $y    $width    $height    `${IMAGE_DIR}${/}screenShot.png`n" -ForegroundColor Green
+                Write-Host "Update Capture Screen Region    $x    $y    $width    $height    `${IMAGE_DIR}${/}screenShot.png`n" -ForegroundColor Green
                 
                 # Save to file
                 $content = "# Screen Region - Calculated on $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
@@ -154,7 +154,7 @@ while ($true) {
                 $content += "Width:  $width`n"
                 $content += "Height: $height`n`n"
                 $content += "ROBOT FRAMEWORK SYNTAX:`n"
-                $content += "#Update# Capture Screen Region    $x    $y    $width    $height    `${IMAGE_DIR}${/}screenShot.png`n"
+                $content += "Update Capture Screen Region    $x    $y    $width    $height    `${IMAGE_DIR}${/}screenShot.png`n"
                 
                 $content | Out-File -FilePath $outputFile -Encoding UTF8
                 Write-Host "💾 Saved to: $outputFile`n" -ForegroundColor Cyan

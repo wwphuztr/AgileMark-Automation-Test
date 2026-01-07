@@ -33,7 +33,8 @@ Case1: Install AgileMark Application
     # Wait the pattern to appear on screen with high similarity threshold
     Log    ========================== WAIT FOR PATTERN TO APPEAR ON SCREEN WITH HIGH SIMILARITY THRESHOLD ==========================
     Set Min Similarity    0.95
-    #Update# Capture Screen Region    0    0    1920    1035    ${EXPECTED_IMAGES_DIR}${/}patternAfterInstall.png 
+    Update Capture Screen Region    0    0    1920    1035    ${IMAGE_DIR}${/}patternAfterInstall.png
+    Update Capture Screen Region    0    0    1920    1035    ${EXPECTED_IMAGES_DIR}${/}patternAfterInstall.png
     ${pattern_found}=    Run Keyword And Return Status    Wait Until Screen Contain    ${IMAGE_DIR}${/}patternAfterInstall.png    ${LONG_TIMEOUT}
 
     # Delete the config file if it exists to ensure a fresh install
@@ -85,15 +86,20 @@ Case2: Verify Watermark display on different screen resolutions
 
     # Click on resolution dropdown
     Log    ========================== ⚙️ CLICKING ON RESOLUTION DROPDOWN ==========================
-    #Update# Capture Screen Region    615    376    343    52    ${IMAGE_DIR}${/}display_resolution_dropdown.png
+    Update Capture Screen Region    615    376    343    52    ${IMAGE_DIR}${/}display_resolution_dropdown.png
     Click    ${IMAGE_DIR}${/}display_resolution_dropdown.png    600    0
     Sleep    1s
 
-    # (1280x720)
-    #Update# Capture Screen Region    1374    501    91    23    ${IMAGE_DIR}${/}resolution_1280x720.png
     # Change to 1280 x 720 resolution
     Log    ========================== ⚙️ CHANGE TO 1280 X 720 RESOLUTION ==========================
     Change Resolution    1280 x 720    down
+
+    # Click Keep changes button
+    Log    ========================== ⚙️ CLICK KEEP CHANGES BUTTON ==========================
+    Log    Clicking Keep changes button...
+    Update Capture Screen Region    2966    597    582    369    ${IMAGE_DIR}${/}keep_changes_button.png
+    Click    ${IMAGE_DIR}${/}keep_changes_button.png
+    Sleep    1s
 
     # Close Display Settings
     Log    ========================== ⚙️ CLOSE DISPLAY SETTINGS ==========================
@@ -112,14 +118,18 @@ Case3: Reset display with default screen resolutions
 
     # Click on resolution dropdown
     Log    ========================== ⚙️ CLICKING ON RESOLUTION DROPDOWN ==========================
-    #Update# Capture Screen Region    615    376    343    52    ${IMAGE_DIR}${/}display_resolution_dropdown.png
+    Update Capture Screen Region    615    376    343    52    ${IMAGE_DIR}${/}display_resolution_dropdown.png
     Click    ${IMAGE_DIR}${/}display_resolution_dropdown.png    650    0
     Sleep    1s
 
-    # Change to 1920 x 1080 resolution
     Log    ========================== ⚙️ CHANGE TO 1920 X 1080 RESOLUTION ==========================
-    # #Update# Capture Screen Region    1374    501    91    23    ${IMAGE_DIR}${/}resolution_1920x1080.png
     Change Resolution    1920 x 1080    up
+
+    # Click Keep changes button
+    Log    ========================== ⚙️ CLICK KEEP CHANGES BUTTON ==========================
+    Log    Clicking Keep changes button...
+    Click    ${IMAGE_DIR}${/}keep_changes_button.png
+    Sleep    1s
 
     # Close Display Settings
     Log    ========================== ⚙️ CLOSE DISPLAY SETTINGS ==========================
@@ -283,12 +293,9 @@ Open Display Settings
     ${result}=    Run Process    powershell    -Command    Start-Process ms-settings:display    shell=True
     # Wait for Display settings window to appear
     Set Min Similarity    0.9
-    #Update# Capture Screen Region    604    106    491    24    ${IMAGE_DIR}${/}display_settings.png
+    Update Capture Screen Region    604    106    491    24    ${IMAGE_DIR}${/}display_settings.png
     ${settings_opened}=    Run Keyword And Return Status    Wait Until Screen Contain    ${IMAGE_DIR}${/}display_settings.png    ${TIMEOUT}
     
-    # Set Min Similarity    0.9
-    # Click    ${IMAGE_DIR}${/}display_settings.png    0    80
-
     # Click on "Display" text in settings
     Click Text    Select a display to change the settings for it. Drag displays to rearrange them.
     
@@ -311,24 +318,18 @@ Close Display Settings
 
 Change Resolution
     [Documentation]    Changes screen resolution with scrolling support
-    [Arguments]    ${resolution_image}    ${scroll_direction}=none
+    [Arguments]    ${resolution_text}    ${scroll_direction}=none
     
     # Scroll if needed
     Run Keyword If    '${scroll_direction}' == 'up'    Scroll Resolution List Up
     Run Keyword If    '${scroll_direction}' == 'down'    Scroll Resolution List Down
     
     # Select resolution
-    Log    Selecting resolution: ${resolution_image}
+    Log    Selecting resolution: ${resolution_text}
     Set Min Similarity    0.8
     
-    Click Text    text=${resolution_image}   
+    Click Text    text=${resolution_text}   
     Sleep    6s
-    
-    # Click Keep changes button
-    Log    Clicking Keep changes button...
-    # Manual update baselined image
-    Click    ${IMAGE_DIR}${/}keep_changes_button.png
-    Sleep    1s
 
 Scroll Resolution List Up
     [Documentation]    Scrolls up in resolution list
